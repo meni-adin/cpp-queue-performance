@@ -1,0 +1,14 @@
+# build directory
+build
+
+# mac-os system files
+.DS_Store
+
+# VS code settings directory
+.vscode
+
+# python cache
+__pycache__
+
+# Notes file
+_notes.md
