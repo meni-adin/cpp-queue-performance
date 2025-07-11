@@ -14,6 +14,7 @@ target_link_libraries(${TARGET_NAME}
     GTest::gmock
     mdn_Queue
     mdn_QueueList
+    mdn_QueueVector
 )
 
 gtest_discover_tests(${TARGET_NAME})

@@ -42,7 +42,7 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterReturnType: All
 AlwaysBreakBeforeMultilineStrings: false
 BinPackArguments: false
 BinPackParameters: false
@@ -77,7 +77,7 @@ IndentGotoLabels: false
 IndentPPDirectives: AfterHash
 IndentRequiresClause: false
 IndentWidth: 4
-IndentWrappedFunctionNames: true
+IndentWrappedFunctionNames: false
 InsertBraces: true
 InsertNewlineAtEOF: true
 IntegerLiteralSeparator:
@@ -89,7 +89,7 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 LambdaBodyIndentation: Signature
 LineEnding: LF
 MaxEmptyLinesToKeep: 1
-NamespaceIndentation: Inner
+NamespaceIndentation: All
 PPIndentWidth: 1
 PackConstructorInitializers: NextLine
 PointerAlignment: Right

@@ -1,20 +1,59 @@
 
-#include <gmock/gmock.h>
+#include <ranges>
+#include <gtest/gtest.h>
 
 #include "mdn/Queue.hpp"
 #include "mdn/QueueList.hpp"
+#include "mdn/QueueVector.hpp"
 
 using namespace testing;
 
-class GTestExtensionTest : public ::testing::Test {};
+using QueueTypes = ::testing::Types<
+    mdn::QueueList<int>
+    // mdn::QueueVector<int>
+    >;
 
-TEST_F(GTestExtensionTest, Dummy) {
-    mdn::QueueList q;
-    q.hello();
-    ASSERT_EQ(42, 42);
+template<typename QueueT>
+class QueueTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(QueueTest, QueueTypes);
+
+TYPED_TEST(QueueTest, CreateAndDestroy) {
+    TypeParam queue;
 }
 
-int main(int argc, char *argv[]) {
+TYPED_TEST(QueueTest, IsEmpty) {
+    TypeParam queue;
+
+    ASSERT_EQ(queue.isEmpty(), true);
+}
+
+TYPED_TEST(QueueTest, SizeOfEmptyQueue) {
+    TypeParam queue;
+
+    ASSERT_EQ(queue.size(), 0);
+}
+
+TYPED_TEST(QueueTest, EnqueueSingleElement) {
+    TypeParam queue;
+
+    queue.enqueue(1);
+    ASSERT_EQ(queue.size(), 1);
+}
+
+TYPED_TEST(QueueTest, EnqueueMultipleElement) {
+    TypeParam queue;
+    constexpr int numElements = 100;
+
+    for (int i : std::views::iota(1, numElements + 1)) {
+        queue.enqueue(i);
+    }
+
+    ASSERT_EQ(queue.size(), numElements);
+}
+
+int
+main(int argc, char *argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

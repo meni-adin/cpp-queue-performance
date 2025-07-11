@@ -17,3 +17,4 @@ target_link_libraries(${TARGET_NAME}
 )
 
 add_subdirectory(QueueList)
+add_subdirectory(QueueVector)
