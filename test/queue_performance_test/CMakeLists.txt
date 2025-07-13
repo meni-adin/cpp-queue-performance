@@ -13,7 +13,8 @@ add_executable(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     GTest::gmock
     mdn_Queue
-    mdn_QueueList
+    mdn_QueueListRaw
+    mdn_QueueListSmart
     mdn_QueueVector
 )
 

@@ -1,7 +1,7 @@
-set(TARGET_NAME mdn_QueueList)
+set(TARGET_NAME mdn_QueueListRaw)
 
 set(TARGET_SOURCES
-    "include/mdn/QueueList.hpp"
+    "include/mdn/QueueListRaw.hpp"
 )
 
 add_library(${TARGET_NAME}

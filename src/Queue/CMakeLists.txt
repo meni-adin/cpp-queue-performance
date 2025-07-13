@@ -12,9 +12,6 @@ target_include_directories(${TARGET_NAME}
     INTERFACE "include"
 )
 
-target_link_libraries(${TARGET_NAME}
-    INTERFACE mdn_QueueList
-)
-
-add_subdirectory(QueueList)
+add_subdirectory(QueueListRaw)
+add_subdirectory(QueueListSmart)
 add_subdirectory(QueueVector)

@@ -11,11 +11,11 @@ namespace mdn {
         virtual void
         enqueue(T value) = 0;
 
-        // virtual T
-        // dequeue() = 0;
+        virtual T
+        dequeue() = 0;
 
-        // virtual const T
-        // &front() = 0;
+        virtual const T
+        &front() = 0;
 
         virtual bool
         isEmpty() const = 0;
