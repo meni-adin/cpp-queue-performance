@@ -2,6 +2,7 @@
 #ifndef MDN_QUEUE_LIST_SMART_HPP
 #define MDN_QUEUE_LIST_SMART_HPP
 
+#include <algorithm>
 #include <iostream>
 
 #include "mdn/Queue.hpp"
@@ -11,55 +12,121 @@ namespace mdn {
     template<typename T>
     class QueueListSmart : public mdn::Queue<T> {
     public:
+        QueueListSmart() = default;
+
+        QueueListSmart(const QueueListSmart &other);
+
+        QueueListSmart(QueueListSmart &&other) noexcept;
+
+        ~QueueListSmart() override = default;
+
+        QueueListSmart &
+        operator=(const QueueListSmart &other);
+
+        QueueListSmart &
+        operator=(QueueListSmart &&other) noexcept;
 
         void
-        enqueue(T value) override;
+        enqueue(const T &value) override;
+
+        void
+        enqueue(T &&value) override;
 
         T
         dequeue() override;
 
-        const T
-        &front() override;
+        const T &
+        front() const override;
 
+        [[nodiscard]]
         bool
         isEmpty() const override;
 
+        [[nodiscard]]
         size_t
         size() const override;
 
-        ~QueueListSmart() override;
+        void
+        clear() override;
+
+        void
+        swap(QueueListSmart &other) noexcept;
 
     private:
         struct Node {
         public:
             T                     value;
             std::unique_ptr<Node> next;
-            Node                 *prev{};
 
-            Node(const T &value, std::unique_ptr<Node> next) :
-                value(value), next(std::move(next)) {
-                if (this->next != nullptr) {
-                    this->next->prev = this;
-                }
+            Node(const T &value) :
+                value(value) {
             }
         };
 
-        Node                 *front_;
-        std::unique_ptr<Node> back_;
+        std::unique_ptr<Node> front_;
+        Node                 *back_{};
         size_t                size_{};
 
         void
-        verifyQueueNotEmpty();
+        verifyQueueNotEmpty() const;
+
+        void
+        enqueueHelper(std::unique_ptr<Node> newNode);
     };
 
     template<typename T>
-    void
-    QueueListSmart<T>::enqueue(T value) {
-        back_ = std::make_unique<Node>(value, std::move(back_));
+    QueueListSmart<T>::QueueListSmart(const QueueListSmart &other) :
+        size_(other.size_) {
         if (size_ == 0) {
-            front_ = back_.get();
+            return;
         }
-        ++size_;
+
+        auto srcNode  = other.front_.get();
+        front_        = std::make_unique<Node>(srcNode->value);
+        auto destNode = front_.get();
+        srcNode       = srcNode->next.get();
+        while (srcNode != nullptr) {
+            destNode->next = std::make_unique<Node>(srcNode->value);
+            srcNode        = srcNode->next.get();
+            destNode       = destNode->next.get();
+        }
+        back_ = destNode;
+    }
+
+    template<typename T>
+    QueueListSmart<T>::QueueListSmart(QueueListSmart &&other) noexcept :
+        front_(std::move(other.front_)), back_(other.back_), size_(other.size_) {
+        other.back_ = nullptr;
+        other.size_ = 0;
+    }
+
+    template<typename T>
+    QueueListSmart<T> &
+    QueueListSmart<T>::operator=(const QueueListSmart &other) {  // NOLINT(bugprone-unhandled-self-assignment, cert-oop54-cpp)
+        QueueListSmart temp(other);
+        swap(temp);
+        return *this;
+    }
+
+    template<typename T>
+    QueueListSmart<T> &
+    QueueListSmart<T>::operator=(QueueListSmart &&other) noexcept {
+        swap(other);
+        return *this;
+    }
+
+    template<typename T>
+    void
+    QueueListSmart<T>::enqueue(const T &value) {
+        auto newNode = std::make_unique<Node>(value);
+        enqueueHelper(std::move(newNode));
+    }
+
+    template<typename T>
+    void
+    QueueListSmart<T>::enqueue(T &&value) {
+        auto newNode = std::make_unique<Node>(std::move(value));
+        enqueueHelper(std::move(newNode));
     }
 
     template<typename T>
@@ -67,13 +134,12 @@ namespace mdn {
     QueueListSmart<T>::dequeue() {
         verifyQueueNotEmpty();
 
-        auto value = front_->value;
-        if (front_ == back_.get()) {
-            back_.reset();
-            front_ = nullptr;
+        auto value = std::move(front_->value);
+        if (front_.get() == back_) {
+            front_.reset();
+            back_ = nullptr;
         } else {
-            front_ = front_->prev;
-            front_->next.reset();
+            front_ = std::move(front_->next);
         }
         --size_;
 
@@ -81,8 +147,8 @@ namespace mdn {
     }
 
     template<typename T>
-    const T
-    &QueueListSmart<T>::front() {
+    const T &
+    QueueListSmart<T>::front() const {
         verifyQueueNotEmpty();
         return front_->value;
     }
@@ -100,15 +166,41 @@ namespace mdn {
     }
 
     template<typename T>
-    QueueListSmart<T>::~QueueListSmart() {
+    void
+    QueueListSmart<T>::clear() {
+        front_.reset();
+        back_ = nullptr;
+        size_ = 0;
     }
 
     template<typename T>
     void
-    QueueListSmart<T>::verifyQueueNotEmpty() {
+    QueueListSmart<T>::swap(QueueListSmart &other) noexcept {
+        using std::swap;
+        swap(front_, other.front_);
+        swap(back_, other.back_);
+        swap(size_, other.size_);
+    }
+
+    template<typename T>
+    void
+    QueueListSmart<T>::verifyQueueNotEmpty() const {
         if (size_ == 0) {
             throw std::out_of_range("Queue is empty");
         }
+    }
+
+    template<typename T>
+    void
+    QueueListSmart<T>::enqueueHelper(std::unique_ptr<Node> newNode) {
+        if (size_ == 0) {
+            front_ = std::move(newNode);
+            back_  = front_.get();
+        } else {
+            back_->next = std::move(newNode);
+            back_       = back_->next.get();
+        }
+        ++size_;
     }
 }  // namespace mdn
 

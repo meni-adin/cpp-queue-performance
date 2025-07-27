@@ -2,6 +2,7 @@
 #ifndef MDN_QUEUE_LIST_RAW_HPP
 #define MDN_QUEUE_LIST_RAW_HPP
 
+#include <algorithm>
 #include <iostream>
 
 #include "mdn/Queue.hpp"
@@ -11,37 +12,60 @@ namespace mdn {
     template<typename T>
     class QueueListRaw : public mdn::Queue<T> {
     public:
+        QueueListRaw() = default;
+
+        QueueListRaw(const QueueListRaw &other);
+
+        QueueListRaw(QueueListRaw &&other) noexcept;
+
+        ~QueueListRaw() override;
+
+        QueueListRaw &
+        operator=(const QueueListRaw &other);
+
+        QueueListRaw &
+        operator=(QueueListRaw &&other) noexcept;
 
         void
-        enqueue(T value) override;
+        enqueue(const T &value) override;
+
+        void
+        enqueue(T &&value) override;
 
         T
         dequeue() override;
 
-        const T
-        &front() override;
+        const T &
+        front() const override;
 
+        [[nodiscard]]
         bool
         isEmpty() const override;
 
+        [[nodiscard]]
         size_t
         size() const override;
 
-        ~QueueListRaw() override;
+        void
+        clear() override;
+
+        void
+        swap(QueueListRaw &other) noexcept;
 
     private:
         struct Node {
         public:
             T     value;
-            Node *next;
-            Node *prev{};
+            Node *next{};
 
-            Node(const T &value, Node *next) :
-                value(value), next(next) {
-                if (this->next != nullptr) {
-                    this->next->prev = this;
-                }
+            explicit Node(const T &value) :
+                value(value) {
             }
+
+            Node(const Node &) = delete;
+
+            Node &
+            operator=(const Node &) = delete;
         };
 
         Node  *front_{};
@@ -49,17 +73,72 @@ namespace mdn {
         size_t size_{};
 
         void
-        verifyQueueNotEmpty();
+        verifyQueueNotEmpty() const;
+
+        void
+        enqueueHelper(Node *newNode);
+
+        void
+        clearHelper();
     };
 
     template<typename T>
-    void
-    QueueListRaw<T>::enqueue(T value) {
-        back_ = new Node(value, back_);
+    QueueListRaw<T>::QueueListRaw(const QueueListRaw &other) :
+        size_(other.size_) {
         if (size_ == 0) {
-            front_ = back_;
+            return;
         }
-        ++size_;
+
+        auto srcNode  = other.front_;
+        auto destNode = front_ = new Node(srcNode->value);
+        srcNode                = srcNode->next;
+        while (srcNode != nullptr) {
+            destNode->next = new Node(srcNode->value);
+            srcNode        = srcNode->next;
+            destNode       = destNode->next;
+        }
+        back_ = destNode;
+    }
+
+    template<typename T>
+    QueueListRaw<T>::QueueListRaw(QueueListRaw &&other) noexcept :
+        front_(other.front_), back_(other.back_), size_(other.size_) {
+        other.front_ = other.back_ = nullptr;
+        other.size_                = 0;
+    }
+
+    template<typename T>
+    QueueListRaw<T>::~QueueListRaw() {
+        clearHelper();
+    }
+
+    template<typename T>
+    QueueListRaw<T> &
+    QueueListRaw<T>::operator=(const QueueListRaw &other) {  // NOLINT(bugprone-unhandled-self-assignment, cert-oop54-cpp)
+        QueueListRaw temp(other);
+        swap(temp);
+        return *this;
+    }
+
+    template<typename T>
+    QueueListRaw<T> &
+    QueueListRaw<T>::operator=(QueueListRaw &&other) noexcept {
+        swap(other);
+        return *this;
+    }
+
+    template<typename T>
+    void
+    QueueListRaw<T>::enqueue(const T &value) {
+        auto newNode = new Node(value);
+        enqueueHelper(newNode);
+    }
+
+    template<typename T>
+    void
+    QueueListRaw<T>::enqueue(T &&value) {
+        auto newNode = new Node(std::move(value));
+        enqueueHelper(newNode);
     }
 
     template<typename T>
@@ -72,8 +151,9 @@ namespace mdn {
             delete front_;
             front_ = back_ = nullptr;
         } else {
-            front_ = front_->prev;
-            delete front_->next;
+            auto toDelete = front_;
+            front_        = front_->next;
+            delete toDelete;
         }
         --size_;
 
@@ -81,8 +161,8 @@ namespace mdn {
     }
 
     template<typename T>
-    const T
-    &QueueListRaw<T>::front() {
+    const T &
+    QueueListRaw<T>::front() const {
         verifyQueueNotEmpty();
         return front_->value;
     }
@@ -100,20 +180,50 @@ namespace mdn {
     }
 
     template<typename T>
-    QueueListRaw<T>::~QueueListRaw() {
-        while (front_ != nullptr) {
-            auto next = front_->next;
-            delete front_;
-            front_ = next;
+    void
+    QueueListRaw<T>::clear() {
+        clearHelper();
+    }
+
+    template<typename T>
+    void
+    QueueListRaw<T>::swap(QueueListRaw &other) noexcept {
+        using std::swap;
+        swap(front_, other.front_);
+        swap(back_, other.back_);
+        swap(size_, other.size_);
+    }
+
+    template<typename T>
+    void
+    QueueListRaw<T>::verifyQueueNotEmpty() const {
+        if (size_ == 0) {
+            throw std::out_of_range("Queue is empty");
         }
     }
 
     template<typename T>
     void
-    QueueListRaw<T>::verifyQueueNotEmpty() {
+    QueueListRaw<T>::enqueueHelper(Node *newNode) {
         if (size_ == 0) {
-            throw std::out_of_range("Queue is empty");
+            front_ = back_ = newNode;
+        } else {
+            back_->next = newNode;
+            back_       = newNode;
         }
+        ++size_;
+    }
+
+    template<typename T>
+    void
+    QueueListRaw<T>::clearHelper() {
+        while (front_ != nullptr) {
+            auto toDelete = front_;
+            front_        = front_->next;
+            delete toDelete;
+        }
+        back_ = nullptr;
+        size_ = 0;
     }
 }  // namespace mdn
 
