@@ -28,15 +28,15 @@ public:
         value_(val) {
     }
 
-    operator std::string() const {
+    operator std::string() const { // NOLINT(hicpp-explicit-conversions)
         return std::to_string(value_);
     }
 
-    explicit FlexibleUint32(std::string val) :
+    explicit FlexibleUint32(const std::string &val) :
         value_(static_cast<uint32_t>(std::stoul(val))) {
     }
 
-    operator uint32_t() const {
+    operator uint32_t() const { // NOLINT(hicpp-explicit-conversions)
         return value_;
     }
 
@@ -77,7 +77,7 @@ protected:
     void
     helper_DequeueElements(QueueType &queue, const TestConfig &testConfig) {
         for (uint32_t i = 0; i < testConfig.elemCount; ++i) {
-            ElemType value = FlexibleUint32(i);
+            const ElemType value = FlexibleUint32(i);
             ASSERT_EQ(queue.size(), testConfig.elemCount - i);
             ASSERT_EQ(queue.front(), value);
             ASSERT_EQ(queue.dequeue(), value);
@@ -113,7 +113,7 @@ TYPED_TEST(QueueTest, SizeOfEmptyQueue) {
 
 TYPED_TEST(QueueTest, EnqueueSingleElementCopy) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::singleElementCount,
         .useMove   = false,
     };
@@ -122,7 +122,7 @@ TYPED_TEST(QueueTest, EnqueueSingleElementCopy) {
 
 TYPED_TEST(QueueTest, EnqueueSingleElementMove) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::singleElementCount,
         .useMove   = true,
     };
@@ -131,7 +131,7 @@ TYPED_TEST(QueueTest, EnqueueSingleElementMove) {
 
 TYPED_TEST(QueueTest, EnqueueMultipleElementsCopy) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = false,
     };
@@ -140,7 +140,7 @@ TYPED_TEST(QueueTest, EnqueueMultipleElementsCopy) {
 
 TYPED_TEST(QueueTest, EnqueueMultipleElementsMove) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -157,7 +157,7 @@ TYPED_TEST(QueueTest, DequeueEmpty) {
 
 TYPED_TEST(QueueTest, EnqueueDequeueSingleElementCopy) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::singleElementCount,
         .useMove   = false,
     };
@@ -166,7 +166,7 @@ TYPED_TEST(QueueTest, EnqueueDequeueSingleElementCopy) {
 
 TYPED_TEST(QueueTest, EnqueueDequeueSingleElementMove) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::singleElementCount,
         .useMove   = true,
     };
@@ -175,7 +175,7 @@ TYPED_TEST(QueueTest, EnqueueDequeueSingleElementMove) {
 
 TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsCopy) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = false,
     };
@@ -184,7 +184,7 @@ TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsCopy) {
 
 TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsMove) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -192,10 +192,10 @@ TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsMove) {
 }
 
 TYPED_TEST(QueueTest, FrontEmpty) {
-    TypeParam queue;
+    const TypeParam queue;
 
     ASSERT_EQ(queue.size(), 0);
-    ASSERT_THROW(queue.front(), std::out_of_range);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
     ASSERT_EQ(queue.size(), 0);
 }
 
@@ -204,13 +204,13 @@ TYPED_TEST(QueueTest, ClearEmpty) {
 
     queue.clear();
     ASSERT_EQ(queue.size(), 0);
-    ASSERT_THROW(queue.front(), std::out_of_range);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
 }
 
 TYPED_TEST(QueueTest, Clear) {
     TypeParam queue;
 
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -218,14 +218,14 @@ TYPED_TEST(QueueTest, Clear) {
 
     queue.clear();
     ASSERT_EQ(queue.size(), 0);
-    ASSERT_THROW(queue.front(), std::out_of_range);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
     ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
 }
 
 TYPED_TEST(QueueTest, CopyConstructor) {
     TypeParam queue;
 
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -242,7 +242,7 @@ TYPED_TEST(QueueTest, CopyConstructor) {
 TYPED_TEST(QueueTest, MoveConstructor) {
     TypeParam queue;
 
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -258,7 +258,7 @@ TYPED_TEST(QueueTest, CopyAssignmentOperator) {
     TypeParam queue;
     TypeParam queueCopy;
 
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -276,7 +276,7 @@ TYPED_TEST(QueueTest, MoveAssignmentOperator) {
     TypeParam queue;
     TypeParam queueCopy;
 
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::multipleElementsCount,
         .useMove   = true,
     };
@@ -300,7 +300,7 @@ TYPED_TEST_SUITE(QueueStressTest, QueueTypes);
 
 TYPED_TEST(QueueStressTest, EnqueueMultipleElements) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::stressElementsCount,
         .useMove   = true,
     };
@@ -309,7 +309,7 @@ TYPED_TEST(QueueStressTest, EnqueueMultipleElements) {
 
 TYPED_TEST(QueueStressTest, DequeueMultipleElements) {
     TypeParam                        queue;
-    typename TestFixture::TestConfig testConfig = {
+    const typename TestFixture::TestConfig testConfig = {
         .elemCount = TestFixture::stressElementsCount,
         .useMove   = true,
     };
@@ -335,7 +335,7 @@ TYPED_TEST(QueueStressTest, RandomEnqueueAndDequeue) {
             ++enqueueCount;
         } else {  // Dequeue
             if (queue.isEmpty()) {
-                ASSERT_THROW(queue.front(), std::out_of_range);
+                ASSERT_THROW((void)queue.front(), std::out_of_range);
             } else {
                 typename TestFixture::ElemType value = FlexibleUint32(dequeueCount);
                 ASSERT_EQ(queue.dequeue(), value);

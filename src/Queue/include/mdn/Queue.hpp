@@ -31,6 +31,7 @@ namespace mdn {
         virtual T
         dequeue() = 0;
 
+        [[nodiscard]]
         virtual const T &
         front() const = 0;
 

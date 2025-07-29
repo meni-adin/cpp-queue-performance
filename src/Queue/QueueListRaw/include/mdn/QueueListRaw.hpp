@@ -35,6 +35,7 @@ namespace mdn {
         T
         dequeue() override;
 
+        [[nodiscard]]
         const T &
         front() const override;
 
@@ -58,14 +59,29 @@ namespace mdn {
             T     value;
             Node *next{};
 
+            Node(const Node &other) :
+                value(other.value) {
+            };
+
+            Node(Node &&other) noexcept :
+                value(std::move(other.value)) {
+            };
+
             explicit Node(const T &value) :
                 value(value) {
             }
 
-            Node(const Node &) = delete;
+            explicit Node(T &&value) noexcept :
+                value(std::move(value)) {
+            }
 
             Node &
-            operator=(const Node &) = delete;
+            operator=(const Node &other) = delete;
+
+            Node &
+            operator=(Node &&other) = delete;
+
+            ~Node() = default;
         };
 
         Node  *front_{};
@@ -90,10 +106,10 @@ namespace mdn {
         }
 
         auto srcNode  = other.front_;
-        auto destNode = front_ = new Node(srcNode->value);
+        auto destNode = front_ = new Node(*srcNode);
         srcNode                = srcNode->next;
         while (srcNode != nullptr) {
-            destNode->next = new Node(srcNode->value);
+            destNode->next = new Node(*srcNode);
             srcNode        = srcNode->next;
             destNode       = destNode->next;
         }

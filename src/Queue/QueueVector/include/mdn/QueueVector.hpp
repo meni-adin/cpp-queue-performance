@@ -35,6 +35,7 @@ namespace mdn {
         T
         dequeue() override;
 
+        [[nodiscard]]
         const T &
         front() const override;
 
@@ -53,9 +54,9 @@ namespace mdn {
         swap(QueueVector &other) noexcept;
 
     private:
-        static inline constexpr size_t initialVecSize_{2};
-        static inline constexpr size_t vecGrowthFactor_{2};
-        std::vector<T>                 vec_;
+        static constexpr size_t initialVecSize_{2};
+        static constexpr size_t vecGrowthFactor_{2};
+        std::vector<T>          vec_;
         size_t
             size_{},
             frontIdx_{0},
