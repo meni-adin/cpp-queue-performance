@@ -8,7 +8,22 @@ endfunction()
 
 function(${PROJECT_NAME}_set_compiler_flags)
     if((CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        endif()
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         add_compile_options(
+            /wd5072
+        )
+    else()
+        message(FATAL_ERROR "Unknown CXX compiler: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endfunction()
+
+function(${PROJECT_NAME}_set_target_cxx_compiler_flags target)
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+        target_compile_options(${target} PRIVATE
             -Werror
             -Wall
             -Wextra
@@ -23,28 +38,35 @@ function(${PROJECT_NAME}_set_compiler_flags)
             -Wno-switch
         )
         if(${PROJECT_NAME_UC}_ENABLE_COVERAGE)
-            add_compile_options(
-                -fprofile-arcs
-                -ftest-coverage
-                )
-            add_link_options(
-                -fprofile-arcs
-                -ftest-coverage
+            target_compile_options(${target} PRIVATE
+            -fprofile-arcs
+            -ftest-coverage
+            )
+            target_link_options(${target} PRIVATE
+            -fprofile-arcs
+            -ftest-coverage
             )
         endif()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         endif()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_compile_options(${target} PRIVATE
+                # -Wformat-signedness  # currently fails clang-tidy using compile_commands.json on Ubuntu
+            )
         endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        add_compile_options(
+        target_compile_options(${target} PRIVATE
             /Wall
             /WX
             /wd4061
             /wd4062
+            /wd4625
+            /wd4626
             /wd4710
             /wd4711
             /wd4820
+            /wd5026
+            /wd5027
             /wd5045
             /wd5072
         )

@@ -18,8 +18,6 @@ target_link_libraries(${TARGET_NAME}
     mdn_QueueVector
 )
 
-target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
-    $<BUILD_INTERFACE:${googletest_SOURCE_DIR}/googletest/include>
-    $<BUILD_INTERFACE:${googletest_SOURCE_DIR}/googlemock/include>
-)
 gtest_discover_tests(${TARGET_NAME})
+
+cmake_language(CALL ${PROJECT_NAME}_set_target_cxx_compiler_flags ${TARGET_NAME})

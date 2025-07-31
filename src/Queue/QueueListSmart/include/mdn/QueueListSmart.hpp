@@ -61,11 +61,11 @@ namespace mdn {
 
             Node(const Node &other) :
                 value(other.value) {
-            };
+            }
 
             Node(Node &&other) noexcept :
                 value(std::move(other.value)) {
-            };
+            }
 
             explicit Node(const T &value) :
                 value(value) {
