@@ -2,6 +2,7 @@
 #include <chrono>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <random>
 #include <ranges>
 
 #include "mdn/Queue.hpp"
@@ -9,136 +10,137 @@
 #include "mdn/QueueListSmart.hpp"
 #include "mdn/QueueVector.hpp"
 
+// #define ENABLE_STRESS_TESTS
+
 using namespace testing;
 
 using QueueTypes = ::testing::Types<
-    mdn::QueueListRaw<int>,
-    mdn::QueueListSmart<int>,
-    mdn::QueueVector<int>
-    >;
+    mdn::QueueListRaw<uint32_t>,
+    mdn::QueueListRaw<std::string>,
+    mdn::QueueListSmart<uint32_t>,
+    mdn::QueueListSmart<std::string>,
+    mdn::QueueVector<uint32_t>,
+    mdn::QueueVector<std::string>>;
 
-template<typename T>
-struct TypeListSize;
-
-template<template<typename...> class TypesContainer, typename... Ts>
-struct TypeListSize<TypesContainer<Ts...>> {
-    static constexpr std::size_t value = sizeof...(Ts);
-};
-
-const std::string STRESS_TEST_SUITE_NAME = "QueueStressTest";
-
-std::vector<std::string>
-splitString(const std::string &s, char delimiter) {
-    std::vector<std::string> tokens;
-    std::string              token;
-    size_t                   start = 0;
-    size_t                   end   = s.find(delimiter);
-
-    while (end != std::string::npos) {
-        token = s.substr(start, end - start);
-        tokens.push_back(token);
-        start = end + 1;
-        end   = s.find(delimiter, start);
-    }
-    tokens.push_back(s.substr(start));
-
-    return tokens;
-}
-
-class TimeReporter : public ::testing::EmptyTestEventListener {
+class FlexibleUint32 {
 public:
-
-    void
-    OnTestEnd(const ::testing::TestInfo &test_info) override {
-        auto splittedTestName = splitString(test_info.test_case_name(), '/');
-        ASSERT_EQ(splittedTestName.size(), 2);
-        if (splittedTestName[0] == STRESS_TEST_SUITE_NAME) {
-            auto typeIdx = std::stoul(splittedTestName[1]);
-            if (testsResults_.count(test_info.name())) {
-                testsResults_[test_info.name()][typeIdx] = test_info.result()->elapsed_time();
-            } else {
-                testsResults_[test_info.name()].resize(numTypes);
-                testsResults_[test_info.name()][typeIdx] = test_info.result()->elapsed_time();
-            }
-        }
+    explicit FlexibleUint32(uint32_t val) :
+        value_(val) {
     }
 
-    void
-    OnTestProgramEnd(const ::testing::UnitTest &unit_test) override {
-        (void)unit_test;
+    operator std::string() const {  // NOLINT(hicpp-explicit-conversions)
+        return std::to_string(value_);
+    }
 
-        if (testsResults_.empty()) {
-            std::cout << "\n--- No tests found for suite: '" << STRESS_TEST_SUITE_NAME << "' ---" << std::endl;
-            return;
-        }
-
-        std::cout << "\n--- Time Report for Suite: '" << STRESS_TEST_SUITE_NAME << "' ---" << std::endl;
-        std::cout << "Test Name\t\tTime (ms)" << std::endl;
-        std::cout << "---------------------------------" << std::endl;
-
-        for (const auto &test : testsResults_) {
-            std::cout << test.first;
-            if (test.first.length() < 16) {  // Heuristic for simple alignment
-                std::cout << "\t\t";
-            } else if (test.first.length() < 24) {
-                std::cout << "\t";
-            }
-            std::cout << test.second[0] << std::endl;
-        }
-        std::cout << "---------------------------------" << std::endl;
+    operator uint32_t() const {  // NOLINT(hicpp-explicit-conversions)
+        return value_;
     }
 
 private:
-    static inline constexpr std::size_t      numTypes = TypeListSize<QueueTypes>::value;
-    std::map<std::string, std::vector<long>> testsResults_;
+    uint32_t value_;
 };
 
 template<typename QueueT>
-class QueueTest : public ::testing::Test {};
-
-template<typename QueueT>
-class QueueStressTest : public QueueTest<QueueT> {
+class QueueTest : public ::testing::Test {
 protected:
-    static inline constexpr int numElements = 1000;
+    static constexpr std::size_t singleElementCount    = 1;
+    static constexpr std::size_t multipleElementsCount = 10;
+    using ElemType                                     = decltype(std::declval<QueueT>().dequeue());
+
+    struct TestConfig {
+        std::size_t elemCount;
+        bool        useMove;
+    };
+
+    template<typename QueueType>
+    void
+    helper_EnqueueElements(QueueType &queue, const TestConfig &testConfig) {
+        for (uint32_t i = 0; i < testConfig.elemCount; ++i) {
+            ElemType value = FlexibleUint32(i);
+            ASSERT_EQ(queue.size(), i);
+            if (testConfig.useMove) {
+                queue.enqueue(std::move(value));
+                value = static_cast<ElemType>(FlexibleUint32(i));
+            } else {
+                queue.enqueue(value);
+            }
+            ASSERT_EQ(queue.front(), static_cast<ElemType>(FlexibleUint32(0)));
+        }
+        ASSERT_EQ(queue.size(), testConfig.elemCount);
+    }
+
+    template<typename QueueType>
+    void
+    helper_DequeueElements(QueueType &queue, const TestConfig &testConfig) {
+        for (uint32_t i = 0; i < testConfig.elemCount; ++i) {
+            const ElemType value = FlexibleUint32(i);
+            ASSERT_EQ(queue.size(), testConfig.elemCount - i);
+            ASSERT_EQ(queue.front(), value);
+            ASSERT_EQ(queue.dequeue(), value);
+        }
+        ASSERT_EQ(queue.size(), 0);
+    }
+
+    template<typename QueueType>
+    void
+    helper_EnqueueDequeueElements(QueueType &queue, const TestConfig &testConfig) {
+        ASSERT_NO_FATAL_FAILURE(helper_EnqueueElements(queue, testConfig));
+        ASSERT_NO_FATAL_FAILURE(helper_DequeueElements(queue, testConfig));
+    }
 };
 
 TYPED_TEST_SUITE(QueueTest, QueueTypes);
-TYPED_TEST_SUITE(QueueStressTest, QueueTypes);
 
 TYPED_TEST(QueueTest, CreateAndDestroy) {
-    TypeParam queue;
+    const TypeParam queue;
 }
 
 TYPED_TEST(QueueTest, IsEmpty) {
-    TypeParam queue;
+    const TypeParam queue;
 
     ASSERT_EQ(queue.isEmpty(), true);
 }
 
 TYPED_TEST(QueueTest, SizeOfEmptyQueue) {
-    TypeParam queue;
+    const TypeParam queue;
 
     ASSERT_EQ(queue.size(), 0);
 }
 
-TYPED_TEST(QueueTest, EnqueueSingleElement) {
-    TypeParam queue;
-
-    queue.enqueue(1);
-    ASSERT_EQ(queue.size(), 1);
+TYPED_TEST(QueueTest, EnqueueSingleElementCopy) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::singleElementCount,
+        .useMove   = false,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
 }
 
-TYPED_TEST(QueueStressTest, EnqueueMultipleElements) {
-    auto      start = std::chrono::high_resolution_clock::now();
-    TypeParam queue;
+TYPED_TEST(QueueTest, EnqueueSingleElementMove) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::singleElementCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+}
 
-    for (int i : std::views::iota(0, TestFixture::numElements)) {
-        queue.enqueue(i);
-    }
-    ASSERT_EQ(queue.size(), TestFixture::numElements);
+TYPED_TEST(QueueTest, EnqueueMultipleElementsCopy) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = false,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+}
 
-    auto                          end      = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
+TYPED_TEST(QueueTest, EnqueueMultipleElementsMove) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
 }
 
 TYPED_TEST(QueueTest, DequeueEmpty) {
@@ -149,59 +151,200 @@ TYPED_TEST(QueueTest, DequeueEmpty) {
     ASSERT_EQ(queue.size(), 0);
 }
 
-TYPED_TEST(QueueTest, DequeueSingleElement) {
-    TypeParam queue;
-
-    queue.enqueue(1);
-    ASSERT_EQ(queue.size(), 1);
-    auto elem = queue.dequeue();
-    ASSERT_EQ(elem, 1);
-    ASSERT_EQ(queue.size(), 0);
+TYPED_TEST(QueueTest, EnqueueDequeueSingleElementCopy) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::singleElementCount,
+        .useMove   = false,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
 }
 
-TYPED_TEST(QueueStressTest, DequeueMultipleElements) {
-    TypeParam queue;
+TYPED_TEST(QueueTest, EnqueueDequeueSingleElementMove) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::singleElementCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
+}
 
-    for (int i : std::views::iota(0, TestFixture::numElements)) {
-        queue.enqueue(i);
-    }
-    ASSERT_EQ(queue.size(), TestFixture::numElements);
+TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsCopy) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = false,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
+}
 
-    for (int i : std::views::iota(0, TestFixture::numElements)) {
-        auto elem = queue.dequeue();
-        ASSERT_EQ(elem, i);
-    }
-    ASSERT_EQ(queue.size(), 0);
+TYPED_TEST(QueueTest, EnqueueDequeueMultipleElementsMove) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
 }
 
 TYPED_TEST(QueueTest, FrontEmpty) {
-    TypeParam queue;
+    const TypeParam queue;
 
     ASSERT_EQ(queue.size(), 0);
-    ASSERT_THROW(queue.front(), std::out_of_range);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
     ASSERT_EQ(queue.size(), 0);
 }
 
-
-TYPED_TEST(QueueTest, Front) {
+TYPED_TEST(QueueTest, ClearEmpty) {
     TypeParam queue;
 
-    queue.enqueue(1);
-    queue.enqueue(2);
-    auto elem = queue.front();
-    ASSERT_EQ(elem, 1);
-    ASSERT_EQ(queue.size(), 2);
-    ASSERT_EQ(elem, 1);
-    ASSERT_EQ(queue.size(), 2);
+    queue.clear();
+    ASSERT_EQ(queue.size(), 0);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
 }
 
+TYPED_TEST(QueueTest, Clear) {
+    TypeParam queue;
+
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+
+    queue.clear();
+    ASSERT_EQ(queue.size(), 0);
+    ASSERT_THROW((void)queue.front(), std::out_of_range);
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
+}
+
+TYPED_TEST(QueueTest, CopyConstructor) {
+    TypeParam queue;
+
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+
+    TypeParam queueCopy(queue);
+    queue.clear();
+    ASSERT_EQ(queue.size(), 0);
+    ASSERT_EQ(queueCopy.size(), testConfig.elemCount);
+
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_DequeueElements(queueCopy, testConfig));
+}
+
+TYPED_TEST(QueueTest, MoveConstructor) {
+    TypeParam queue;
+
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+
+    TypeParam queueCopy(std::move(queue));  // need to make queue go out of scope
+    ASSERT_EQ(queueCopy.size(), testConfig.elemCount);
+
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_DequeueElements(queueCopy, testConfig));
+}
+
+TYPED_TEST(QueueTest, CopyAssignmentOperator) {
+    TypeParam queue;
+    TypeParam queueCopy;
+
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+
+    queueCopy = queue;
+    queue.clear();
+    ASSERT_EQ(queue.size(), 0);
+    ASSERT_EQ(queueCopy.size(), testConfig.elemCount);
+
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_DequeueElements(queueCopy, testConfig));
+}
+
+TYPED_TEST(QueueTest, MoveAssignmentOperator) {
+    TypeParam queue;
+    TypeParam queueCopy;
+
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::multipleElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+
+    queueCopy = std::move(queue);
+    ASSERT_EQ(queueCopy.size(), testConfig.elemCount);
+
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_DequeueElements(queueCopy, testConfig));
+}
+
+#ifdef ENABLE_STRESS_TESTS
+
+template<typename QueueT>
+class QueueStressTest : public QueueTest<QueueT> {
+protected:
+    static constexpr std::size_t stressElementsCount = 10000000;
+};
+
+TYPED_TEST_SUITE(QueueStressTest, QueueTypes);
+
+TYPED_TEST(QueueStressTest, EnqueueMultipleElements) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::stressElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueElements(queue, testConfig));
+}
+
+TYPED_TEST(QueueStressTest, DequeueMultipleElements) {
+    TypeParam                              queue;
+    const typename TestFixture::TestConfig testConfig = {
+        .elemCount = TestFixture::stressElementsCount,
+        .useMove   = true,
+    };
+    ASSERT_NO_FATAL_FAILURE(TestFixture::helper_EnqueueDequeueElements(queue, testConfig));
+}
+
+TYPED_TEST(QueueStressTest, RandomEnqueueAndDequeue) {
+    TypeParam                          queue;
+    std::mt19937                       operationRng;
+    std::mt19937                       moveRng;
+    std::uniform_int_distribution<int> opDist(0, 1);
+    uint32_t                           enqueueCount{}, dequeueCount{};
+
+    for (uint32_t i = 0; i < TestFixture::stressElementsCount; ++i) {
+        if (opDist(operationRng)) {  // Enqueue
+            typename TestFixture::ElemType value = FlexibleUint32(enqueueCount);
+            if (opDist(moveRng)) {
+                queue.enqueue(std::move(value));
+                value = static_cast<TestFixture::ElemType>(FlexibleUint32(enqueueCount));
+            } else {
+                queue.enqueue(value);
+            }
+            ++enqueueCount;
+        } else {  // Dequeue
+            if (queue.isEmpty()) {
+                ASSERT_THROW((void)queue.front(), std::out_of_range);
+            } else {
+                typename TestFixture::ElemType value = FlexibleUint32(dequeueCount);
+                ASSERT_EQ(queue.dequeue(), value);
+                ++dequeueCount;
+            }
+        }
+    }
+}
+
+#endif  // ENABLE_STRESS_TESTS
 
 int
 main(int argc, char *argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
-
-    // ::testing::TestEventListeners &listeners = ::testing::UnitTest::GetInstance()->listeners();
-    // listeners.Append(new TimeReporter);  // GTest takes ownership
-
     return RUN_ALL_TESTS();
 }

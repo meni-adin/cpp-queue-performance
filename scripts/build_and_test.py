@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 import json
+import os
 import re
 import subprocess
 import utils
@@ -24,11 +25,13 @@ def get_tests_executables_dict(build_type):
     return tests_executables_dict
 
 def run_tests(tests_executables_dict):
+    env = os.environ.copy()
+    env["ASAN_WIN_CONTINUE_ON_INTERCEPTION_FAILURE"] = "1"
     for key in tests_executables_dict:
         command = f'{key}'
         if utils.running_on_macos():
             command = 'MallocNanoZone=0 ' + command
-        utils.run_command(command, shell=True, check=True)
+        utils.run_command(command, shell=True, check=True, env=env)
 
 def run_memory_test(tests_executables_dict):
     if utils.program_available('valgrind'):

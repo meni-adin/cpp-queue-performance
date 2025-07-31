@@ -19,3 +19,5 @@ target_link_libraries(${TARGET_NAME}
 )
 
 gtest_discover_tests(${TARGET_NAME})
+
+cmake_language(CALL ${PROJECT_NAME}_set_target_cxx_compiler_flags ${TARGET_NAME})

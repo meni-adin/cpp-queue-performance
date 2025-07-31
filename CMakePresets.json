@@ -42,6 +42,9 @@
                     "type": "BOOL",
                     "value": "ON"
                 }
+            },
+            "environment": {
+                "ASAN_WIN_CONTINUE_ON_INTERCEPTION_FAILURE": "1"
             }
         },
         {
